@@ -1,41 +1,15 @@
-const STORAGE_KEY = "it-help-desk-tickets";
-const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
-function readStoredTickets() {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    console.error(error);
-    return [];
-  }
-}
-
-function writeStoredTickets(tickets) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
+function authHeaders() {
+  const token = localStorage.getItem("it-help-desk-token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export async function getTickets() {
-  const storedTickets = readStoredTickets();
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/tickets`);
-    if (!response.ok) throw new Error("Failed to load tickets");
-
-    const data = await response.json();
-    const tickets = Array.isArray(data) ? data : [];
-    if (tickets.length > 0 || storedTickets.length === 0) {
-      writeStoredTickets(tickets);
-      return tickets;
-    }
-  } catch (error) {
-    // fall back to local browser storage
-  }
-
-  return storedTickets;
+  const response = await fetch(`${API_BASE_URL}/tickets`, { headers: authHeaders() });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(response.status === 401 ? "Your session has expired. Please sign in again." : data.message || "Failed to load tickets from the backend");
+  return Array.isArray(data) ? data : [];
 }
 
 export async function addTicket(ticket) {
@@ -44,47 +18,33 @@ export async function addTicket(ticket) {
     status: ticket.status || "Open",
   };
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/tickets`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) throw new Error("Unable to save ticket");
-
-    const data = await response.json();
-    const savedTicket = data.ticket || { ...payload, _id: Date.now().toString() };
-    const storedTickets = [savedTicket, ...readStoredTickets()];
-    writeStoredTickets(storedTickets);
-    return { ticket: savedTicket, source: "backend" };
-  } catch (error) {
-    const fallbackTicket = {
-      ...payload,
-      _id: payload._id || `${Date.now()}`,
-    };
-    const storedTickets = [fallbackTicket, ...readStoredTickets()];
-    writeStoredTickets(storedTickets);
-    return { ticket: fallbackTicket, source: "local" };
+  const response = await fetch(`${API_BASE_URL}/tickets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(response.status === 401 ? "Your session has expired. Please sign in again." : data.message || "Unable to save ticket to the backend");
   }
+  if (!data.ticket?._id) throw new Error("The backend did not confirm the ticket was saved");
+  return { ticket: data.ticket, source: "backend" };
 }
 
 export async function deleteTicket(id) {
   try {
     const response = await fetch(`${API_BASE_URL}/tickets/${id}`, {
       method: "DELETE",
+      headers: authHeaders(),
     });
 
-    if (!response.ok) throw new Error("Unable to delete ticket");
+    if (!response.ok) throw new Error(response.status === 401 ? "Your session has expired. Please sign in again." : "Unable to delete ticket");
 
-    const updatedTickets = readStoredTickets().filter((ticket) => ticket._id !== id);
-    writeStoredTickets(updatedTickets);
     return { success: true, source: "backend" };
-  } catch (error) {
-    const updatedTickets = readStoredTickets().filter((ticket) => ticket._id !== id);
-    writeStoredTickets(updatedTickets);
-    return { success: true, source: "local" };
+  } catch {
+    throw new Error("Unable to delete ticket from the backend");
   }
 }

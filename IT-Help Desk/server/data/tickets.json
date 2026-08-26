@@ -1,18 +1,23 @@
 [
   {
-    "_id": "2026-08-07T17:23:47.632Z",
-    "name": "uioio",
-    "department": "jjj",
-    "issue": "nnnn",
-    "priority": "Low",
-    "status": "Open"
+    "_id": "2026-08-26T11:06:31.877Z",
+    "userId": "1787742347432",
+    "name": "Deva",
+    "email": "devanandhkathirvel@gmail.com",
+    "department": "finance",
+    "issue": "wifi is not working",
+    "priority": "Medium",
+    "status": "Open",
+    "submittedAt": "2026-08-26T11:06:31.877Z",
+    "resolvedAt": null,
+    "resolutionNote": null
   },
   {
-    "_id": "2026-08-07T17:16:30.284Z",
-    "name": "gff",
-    "department": "mm",
-    "issue": "kkk",
-    "priority": "Low",
+    "_id": "2026-08-22T14:53:03.695Z",
+    "name": "deva",
+    "department": "it",
+    "issue": "network",
+    "priority": "Medium",
     "status": "Open"
   },
   {
@@ -21,14 +26,6 @@
     "department": "IT",
     "issue": "Verify ticket flow",
     "priority": "High",
-    "status": "Open"
-  },
-  {
-    "_id": "2026-08-07T17:12:50.884Z",
-    "name": "yuij",
-    "department": "yytr",
-    "issue": "yuio",
-    "priority": "Low",
     "status": "Open"
   },
   {
