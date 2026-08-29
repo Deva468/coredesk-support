@@ -5,7 +5,7 @@
     "name": "Deva",
     "email": "devanandhkathirvel@gmail.com",
     "passwordHash": "$2b$12$7rGoKaPwTnPbZQPdyEllmeFbO/1SELQlyG/Q38hWTu6gAG4fHw9xG",
-    "role": "user",
+    "role": "employee",
     "lastLoginAt": "2026-08-26T14:43:21.108Z",
     "loginHistory": [
       {
@@ -20,7 +20,7 @@
     "name": "k",
     "email": "spareinbox@gmail.com",
     "passwordHash": "$2b$12$fOzZ3R3U2yvlTgvVm2xmy.VjLadcuHW4CrVz8XdcPdlwL3s5/RIb6",
-    "role": "user",
+    "role": "employee",
     "lastLoginAt": "2026-08-26T12:43:01.654Z"
   },
   {
@@ -29,7 +29,7 @@
     "name": "spare",
     "email": "spareinbox657@gmail.com",
     "googleId": "111443659525656958738",
-    "role": "user",
+    "role": "employee",
     "lastLoginAt": "2026-08-26T14:46:49.870Z",
     "loginHistory": [
       {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { API_BASE_URL } from "../api";
 import { getTickets } from "../utils/ticketStore";
 import { getToken } from "../utils/authStore";
 
@@ -9,7 +10,7 @@ function Home() {
 
   useEffect(() => {
     getTickets().then((data) => setTickets(Array.isArray(data) ? data : []));
-    fetch("/api/notifications", { headers: { Authorization: `Bearer ${getToken()}` } }).then((response) => response.json()).then((data) => setNotifications(Array.isArray(data) ? data.filter((item) => !item.read) : []));
+    fetch(`${API_BASE_URL}/notifications`, { headers: { Authorization: `Bearer ${getToken()}` } }).then((response) => response.json()).then((data) => setNotifications(Array.isArray(data) ? data.filter((item) => !item.read) : []));
   }, []);
 
   const openCount = tickets.filter((ticket) => (ticket.status || "Open") === "Open").length;

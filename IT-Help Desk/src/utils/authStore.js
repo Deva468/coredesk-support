@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+import { API_BASE_URL } from "../api";
+
 const TOKEN_KEY = "it-help-desk-token";
 
 export function getToken() { return localStorage.getItem(TOKEN_KEY); }
@@ -15,4 +16,4 @@ export async function login(credentials) { const data = await request("/auth/log
 export async function signup(details) { const data = await request("/auth/signup", { method: "POST", body: JSON.stringify(details) }); localStorage.setItem(TOKEN_KEY, data.token); return data.user; }
 export async function getCurrentUser() { const token = getToken(); if (!token) return null; try { const data = await request("/auth/me", { headers: { Authorization: `Bearer ${token}` } }); return data.user; } catch { clearToken(); return null; } }
 export async function googleLogin(credential) { const data = await request("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }); localStorage.setItem(TOKEN_KEY, data.token); return data.user; }
-export async function logout() { const token = getToken(); if (token) await request("/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } }); clearToken(); }
+export async function logout() { const token = getToken(); try { if (token) await request("/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } }); } finally { clearToken(); } }
