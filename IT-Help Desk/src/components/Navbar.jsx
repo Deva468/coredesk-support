@@ -24,7 +24,7 @@ function Navbar() {
         ))}
         {user?.role === "admin" && <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/admin"><span className="nav-icon">✓</span>Admin panel</NavLink>}
       </div>
-      <div className="sidebar-help"><span className="help-dot">?</span><div><strong>Need a hand?</strong><small>Browse the knowledge base</small></div></div>
+      <Link className="sidebar-help" to="/help" aria-label="Browse the knowledge base"><span className="help-dot">?</span><div><strong>Need a hand?</strong><small>Browse the knowledge base</small></div></Link>
       {user ? <div className="user-profile"><Link className="avatar" to="/settings">{user.name.slice(0, 2).toUpperCase()}</Link><div><Link to="/settings"><strong>{user.name}</strong><small>{user.role === "admin" ? "Administrator" : user.email}</small></Link></div><button className="signout" onClick={signOut}>↪</button></div> : <Link className="nav-link" to="/login"><span className="nav-icon">→</span>Sign in</Link>}
     </aside>
   );

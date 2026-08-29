@@ -156,14 +156,82 @@ app.post("/auth/password", authRequired, async (req, res) => { const { currentPa
 
 app.get("/tickets", authRequired, async (req, res) => { const tickets = isMongoConnected ? await Ticket.find(req.user.role === "admin" ? {} : { userId: req.user._id, status: "Open" }).populate("userId", "name email department role").populate("resolver", "name email").populate("remover", "name email").populate("assignedTo", "name email").sort({ submittedAt: -1 }) : readFile("tickets.json").filter((ticket) => ticket.status === "Open" && (req.user.role === "admin" || ticket.userId === String(req.user._id))); res.json(tickets); });
 app.get("/admin/tickets/:id", authRequired, adminRequired, async (req, res) => { if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable" }); try { const ticket = await Ticket.findById(req.params.id).populate("userId", "name email department role").populate("resolver", "name email").populate("remover", "name email").populate("assignedTo", "name email"); if (!ticket) return res.status(404).json({ message: "Request not found" }); res.json({ ticket }); } catch (error) { if (error.name === "CastError") return res.status(400).json({ message: "Invalid request ID" }); throw error; } });
-app.get("/admin/activity", authRequired, adminRequired, async (req, res) => { if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable" }); const activities = await Activity.find().populate("userId", "name email department role").sort({ createdAt: -1 }).limit(200).lean(); res.json(activities); });
-app.get("/admin/users", authRequired, adminRequired, async (req, res) => { if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable" }); const users = await User.find().select("name email department role createdAt lastLoginAt lastLogoutAt isActive").sort({ createdAt: -1 }).lean(); res.json({ count: users.length, users }); });
+app.get("/admin/activity", authRequired, async (req, res) => {
+  if (!isMongoConnected) return res.json([]);
+  const activities = await Activity.find().populate("userId", "name email department role").sort({ createdAt: -1 }).limit(200).lean();
+  res.json(activities);
+});
+app.get("/admin/users", authRequired, adminRequired, async (req, res) => {
+  if (isMongoConnected) {
+    const users = await User.find().select("name email department role createdAt lastLoginAt lastLogoutAt isActive").sort({ createdAt: -1 }).lean();
+    return res.json({ count: users.length, users });
+  }
+  const users = readFile("users.json");
+  res.json({ count: users.length, users });
+});
+app.patch("/admin/users/:id/promote", authRequired, adminRequired, async (req, res) => {
+  if (!isMongoConnected) {
+    const users = readFile("users.json");
+    const userToPromote = users.find((user) => String(user._id) === String(req.params.id));
+    if (!userToPromote) return res.status(404).json({ message: "User not found" });
+    if (userToPromote.role === "admin") return res.json({ user: publicUser(userToPromote), message: "User is already an admin" });
+    userToPromote.role = "admin";
+    writeFile("users.json", users);
+    return res.json({ user: publicUser(userToPromote), message: "User promoted to admin" });
+  }
+  try {
+    const userToPromote = await User.findById(req.params.id);
+    if (!userToPromote) return res.status(404).json({ message: "User not found" });
+    if (userToPromote.role === "admin") return res.json({ user: publicUser(userToPromote), message: "User is already an admin" });
+    userToPromote.role = "admin";
+    await userToPromote.save();
+    await logActivity(req.user, "user_promoted", { targetUserId: String(userToPromote._id), targetEmail: userToPromote.email });
+    res.json({ user: publicUser(userToPromote), message: "User promoted to admin" });
+  } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid user ID" });
+    console.error("User promotion failed:", error);
+    res.status(500).json({ message: "The user could not be promoted" });
+  }
+});
 
 app.post("/tickets", authRequired, async (req, res) => { if (!req.body?.department || !req.body?.issue) return res.status(400).json({ message: "Department and issue description are required" }); if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable. The request was not saved." }); try { const saved = await new Ticket(ticketRecord(req.body, req.user)).save(); await logActivity(req.user, "ticket_created", { ticketId: String(saved._id) }); return res.status(201).json({ ticket: saved }); } catch (error) { console.error("Ticket save failed:", error); return res.status(500).json({ message: "The request could not be saved to MongoDB" }); } });
 
 app.delete("/tickets/:id", authRequired, adminRequired, async (req, res) => { if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable. The request was not removed." }); try { const ticket = await Ticket.findById(req.params.id); if (!ticket) return res.status(404).json({ message: "Request not found" }); if (ticket.status !== "Open") return res.status(409).json({ message: "Only open requests can be removed" }); const removedAt = new Date(); ticket.status = "Removed"; ticket.updatedAt = removedAt; ticket.removedAt = removedAt; ticket.remover = req.user._id; ticket.removerName = req.user.name; ticket.removerEmail = req.user.email; ticket.history.push({ status: "Removed", note: "Request removed from the active queue", changedAt: removedAt, changedBy: String(req.user._id) }); await ticket.save(); await logActivity(req.user, "ticket_removed", { ticketId: String(ticket._id), issue: ticket.issue, removedAt }); return res.json({ message: "Request removed from the active queue", ticket }); } catch (error) { if (error.name === "CastError") return res.status(400).json({ message: "Invalid request ID" }); console.error("Ticket removal failed:", error); return res.status(500).json({ message: "The request could not be removed from MongoDB" }); } });
 
-app.patch("/admin/tickets/:id/assign", authRequired, adminRequired, async (req, res) => { if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable" }); const resolverId = String(req.body?.resolverId || ""); if (!mongoose.isValidObjectId(resolverId)) return res.status(400).json({ message: "A valid resolver ID is required" }); const resolver = await User.findOne({ _id: resolverId, role: "admin" }); if (!resolver) return res.status(404).json({ message: "Resolver not found" }); const assignedAt = new Date(); const ticket = await Ticket.findByIdAndUpdate(req.params.id, { assignedTo: resolver._id, assignedToName: resolver.name, assignedToEmail: resolver.email, updatedAt: assignedAt, $push: { history: { status: "Open", note: `Assigned to ${resolver.name}`, changedAt: assignedAt, changedBy: String(req.user._id) } } }, { new: true }).populate("assignedTo", "name email"); if (!ticket) return res.status(404).json({ message: "Request not found" }); await logActivity(req.user, "ticket_assigned", { ticketId: String(ticket._id), resolverId: String(resolver._id) }); res.json({ ticket }); });
+app.patch("/admin/tickets/:id/assign", authRequired, adminRequired, async (req, res) => {
+  const resolverId = String(req.body?.resolverId || "");
+  if (!resolverId) return res.status(400).json({ message: "A valid resolver ID is required" });
+  if (!isMongoConnected) {
+    const users = readFile("users.json");
+    const resolver = users.find((u) => String(u._id) === resolverId && u.role === "admin");
+    if (!resolver) return res.status(404).json({ message: "Resolver not found" });
+    const tickets = readFile("tickets.json");
+    const ticket = tickets.find((t) => String(t._id) === String(req.params.id));
+    if (!ticket) return res.status(404).json({ message: "Request not found" });
+    ticket.assignedTo = resolver._id;
+    ticket.assignedToName = resolver.name;
+    ticket.assignedToEmail = resolver.email;
+    ticket.updatedAt = new Date().toISOString();
+    ticket.history = ticket.history || [];
+    ticket.history.push({ status: ticket.status || "Open", note: `Assigned to ${resolver.name}`, changedAt: ticket.updatedAt, changedBy: String(req.user._id) });
+    writeFile("tickets.json", tickets);
+    return res.json({ ticket });
+  }
+  if (!mongoose.isValidObjectId(resolverId)) return res.status(400).json({ message: "A valid resolver ID is required" });
+  const resolver = await User.findOne({ _id: resolverId, role: "admin" });
+  if (!resolver) return res.status(404).json({ message: "Resolver not found" });
+  const assignedAt = new Date();
+  const ticket = await Ticket.findByIdAndUpdate(req.params.id, {
+    assignedTo: resolver._id,
+    assignedToName: resolver.name,
+    assignedToEmail: resolver.email,
+    updatedAt: assignedAt,
+    $push: { history: { status: "Open", note: `Assigned to ${resolver.name}`, changedAt: assignedAt, changedBy: String(req.user._id) } }
+  }, { new: true }).populate("assignedTo", "name email");
+  if (!ticket) return res.status(404).json({ message: "Request not found" });
+  await logActivity(req.user, "ticket_assigned", { ticketId: String(ticket._id), resolverId: String(resolver._id) });
+  res.json({ ticket });
+});
 
 app.patch("/tickets/:id/resolve", authRequired, adminRequired, async (req, res) => { const note = String(req.body?.resolutionNote || "Resolved by the support team").trim(); if (isMongoConnected) { const resolvedAt = new Date(); const ticket = await Ticket.findOneAndUpdate({ _id: req.params.id, status: "Open" }, { status: "Resolved", updatedAt: resolvedAt, resolvedAt, resolutionNote: note, resolver: req.user._id, resolverName: req.user.name, resolverEmail: req.user.email, $push: { history: { status: "Resolved", note, changedAt: resolvedAt, changedBy: String(req.user._id) } } }, { new: true }); if (!ticket) return res.status(404).json({ message: "Open request not found" }); await Notification.create({ userId: ticket.userId, ticketId: String(ticket._id), message: `Your request "${ticket.issue}" has been resolved.` }); await logActivity(req.user, "ticket_resolved", { ticketId: String(ticket._id), resolutionNote: note, resolverId: String(req.user._id), resolverName: req.user.name, resolverEmail: req.user.email, resolvedAt }); return res.json({ ticket }); } const tickets = readFile("tickets.json"); const ticket = tickets.find((entry) => String(entry._id) === String(req.params.id)); if (!ticket) return res.status(404).json({ message: "Request not found" }); ticket.status = "Resolved"; ticket.resolvedAt = new Date().toISOString(); ticket.resolutionNote = note; ticket.resolver = req.user._id; ticket.resolverName = req.user.name; ticket.resolverEmail = req.user.email; ticket.history = [...(ticket.history || []), { status: "Resolved", note, changedAt: ticket.resolvedAt, changedBy: String(req.user._id) }]; writeFile("tickets.json", tickets); const notifications = readFile("notifications.json"); notifications.unshift({ _id: `${Date.now()}`, userId: ticket.userId, ticketId: ticket._id, message: `Your request "${ticket.issue}" has been resolved.`, read: false, createdAt: new Date().toISOString() }); writeFile("notifications.json", notifications); res.json({ ticket }); });
 
