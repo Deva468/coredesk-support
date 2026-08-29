@@ -76,7 +76,8 @@ function AdminPanel() {
     await load();
   }
 
-  async function promoteUser(id) {
+  async function promoteUser(id, userName) {
+    if (!window.confirm(`Are you sure you want to make ${userName || "this user"} an Administrator?`)) return;
     const response = await fetch(`${API_BASE_URL}/admin/users/${id}/promote`, {
       method: "PATCH",
       headers: headers(true),
@@ -84,6 +85,36 @@ function AdminPanel() {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       setError(data.message || "Unable to promote user");
+      return;
+    }
+    setError("");
+    await load();
+  }
+
+  async function demoteUser(id, userName) {
+    if (!window.confirm(`Are you sure you want to remove Administrator privileges from ${userName || "this user"}?`)) return;
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/demote`, {
+      method: "PATCH",
+      headers: headers(true),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(data.message || "Unable to remove admin privileges");
+      return;
+    }
+    setError("");
+    await load();
+  }
+
+  async function clearHistory() {
+    if (!window.confirm("WARNING: Are you sure you want to permanently clear ALL resolved and removed ticket records? This action cannot be undone.")) return;
+    const response = await fetch(`${API_BASE_URL}/admin/tickets/history/clear`, {
+      method: "DELETE",
+      headers: headers(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(data.message || "Failed to clear history");
       return;
     }
     setError("");
@@ -175,41 +206,54 @@ function AdminPanel() {
             </tr>
           </thead>
           <tbody>
-            {users.map((userItem) => (
-              <tr key={userItem._id}>
-                <td>
-                  <strong>{userItem.name}</strong>
-                  <br />
-                  <small>{userItem.email}</small>
-                </td>
-                <td>{userItem.department}</td>
-                <td>
-                  <span className={`priority ${userItem.role === "admin" ? "high" : "low"}`}>
-                    {userItem.role}
-                  </span>
-                </td>
-                <td>{formatDate(userItem.createdAt)}</td>
-                <td>{formatDate(userItem.lastLoginAt)}</td>
-                <td>{userItem.isActive ? "Active" : "Offline"}</td>
-                {user?.role === "admin" && (
+            {users.map((userItem) => {
+              const isCurrentUser = String(userItem._id) === String(user?._id) || String(userItem.email).toLowerCase() === String(user?.email).toLowerCase();
+              return (
+                <tr key={userItem._id}>
                   <td>
-                    {userItem.role === "admin" ? (
-                      <span className="field-hint" style={{ float: "none", color: "var(--teal)", fontWeight: "600" }}>
-                        Admin
-                      </span>
-                    ) : (
-                      <button
-                        className="button secondary"
-                        type="button"
-                        onClick={() => promoteUser(userItem._id)}
-                      >
-                        Make Admin
-                      </button>
-                    )}
+                    <strong>{userItem.name}</strong>
+                    <br />
+                    <small>{userItem.email}</small>
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td>{userItem.department}</td>
+                  <td>
+                    <span className={`priority ${userItem.role === "admin" ? "high" : "low"}`}>
+                      {userItem.role}
+                    </span>
+                  </td>
+                  <td>{formatDate(userItem.createdAt)}</td>
+                  <td>{formatDate(userItem.lastLoginAt)}</td>
+                  <td>{userItem.isActive ? "Active" : "Offline"}</td>
+                  {user?.role === "admin" && (
+                    <td>
+                      {userItem.role === "admin" ? (
+                        isCurrentUser ? (
+                          <span className="field-hint" style={{ float: "none", color: "var(--teal)", fontWeight: "600" }}>
+                            Current Admin
+                          </span>
+                        ) : (
+                          <button
+                            className="button danger"
+                            type="button"
+                            onClick={() => demoteUser(userItem._id, userItem.name)}
+                          >
+                            Remove Admin
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          className="button secondary"
+                          type="button"
+                          onClick={() => promoteUser(userItem._id, userItem.name)}
+                        >
+                          Make Admin
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </section>
@@ -273,6 +317,11 @@ function AdminPanel() {
             <span className="eyebrow">TICKET HISTORY</span>
             <h2>Resolved and removed requests</h2>
           </div>
+          {historical.length > 0 && (
+            <button className="button danger" type="button" onClick={clearHistory}>
+              Clear All History
+            </button>
+          )}
         </div>
         {historical.length === 0 ? (
           <div className="empty-state">No historical requests yet.</div>

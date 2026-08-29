@@ -194,6 +194,52 @@ app.patch("/admin/users/:id/promote", authRequired, adminRequired, async (req, r
   }
 });
 
+app.patch("/admin/users/:id/demote", authRequired, adminRequired, async (req, res) => {
+  if (String(req.user._id) === String(req.params.id)) {
+    return res.status(400).json({ message: "You cannot demote your own administrator account" });
+  }
+  if (!isMongoConnected) {
+    const users = readFile("users.json");
+    const userToDemote = users.find((user) => String(user._id) === String(req.params.id));
+    if (!userToDemote) return res.status(404).json({ message: "User not found" });
+    if (userToDemote.role === "employee") return res.json({ user: publicUser(userToDemote), message: "User is already an employee" });
+    userToDemote.role = "employee";
+    writeFile("users.json", users);
+    return res.json({ user: publicUser(userToDemote), message: "Admin access removed" });
+  }
+  try {
+    const userToDemote = await User.findById(req.params.id);
+    if (!userToDemote) return res.status(404).json({ message: "User not found" });
+    if (userToDemote.role === "employee") return res.json({ user: publicUser(userToDemote), message: "User is already an employee" });
+    userToDemote.role = "employee";
+    await userToDemote.save();
+    await logActivity(req.user, "user_demoted", { targetUserId: String(userToDemote._id), targetEmail: userToDemote.email });
+    res.json({ user: publicUser(userToDemote), message: "Admin access removed" });
+  } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid user ID" });
+    console.error("User demotion failed:", error);
+    res.status(500).json({ message: "The user could not be demoted" });
+  }
+});
+
+app.delete("/admin/tickets/history/clear", authRequired, adminRequired, async (req, res) => {
+  if (!isMongoConnected) {
+    const tickets = readFile("tickets.json");
+    const remainingTickets = tickets.filter((ticket) => ticket.status === "Open");
+    const deletedCount = tickets.length - remainingTickets.length;
+    writeFile("tickets.json", remainingTickets);
+    return res.json({ message: `Successfully cleared ${deletedCount} historical records`, deletedCount });
+  }
+  try {
+    const result = await Ticket.deleteMany({ status: { $in: ["Resolved", "Removed"] } });
+    await logActivity(req.user, "history_cleared", { deletedCount: result.deletedCount });
+    res.json({ message: `Successfully cleared ${result.deletedCount} historical records`, deletedCount: result.deletedCount });
+  } catch (error) {
+    console.error("Clear history failed:", error);
+    res.status(500).json({ message: "Could not clear ticket history" });
+  }
+});
+
 app.post("/tickets", authRequired, async (req, res) => { if (!req.body?.department || !req.body?.issue) return res.status(400).json({ message: "Department and issue description are required" }); if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable. The request was not saved." }); try { const saved = await new Ticket(ticketRecord(req.body, req.user)).save(); await logActivity(req.user, "ticket_created", { ticketId: String(saved._id) }); return res.status(201).json({ ticket: saved }); } catch (error) { console.error("Ticket save failed:", error); return res.status(500).json({ message: "The request could not be saved to MongoDB" }); } });
 
 app.delete("/tickets/:id", authRequired, adminRequired, async (req, res) => { if (!isMongoConnected) return res.status(503).json({ message: "MongoDB is unavailable. The request was not removed." }); try { const ticket = await Ticket.findById(req.params.id); if (!ticket) return res.status(404).json({ message: "Request not found" }); if (ticket.status !== "Open") return res.status(409).json({ message: "Only open requests can be removed" }); const removedAt = new Date(); ticket.status = "Removed"; ticket.updatedAt = removedAt; ticket.removedAt = removedAt; ticket.remover = req.user._id; ticket.removerName = req.user.name; ticket.removerEmail = req.user.email; ticket.history.push({ status: "Removed", note: "Request removed from the active queue", changedAt: removedAt, changedBy: String(req.user._id) }); await ticket.save(); await logActivity(req.user, "ticket_removed", { ticketId: String(ticket._id), issue: ticket.issue, removedAt }); return res.json({ message: "Request removed from the active queue", ticket }); } catch (error) { if (error.name === "CastError") return res.status(400).json({ message: "Invalid request ID" }); console.error("Ticket removal failed:", error); return res.status(500).json({ message: "The request could not be removed from MongoDB" }); } });
