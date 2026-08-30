@@ -8,17 +8,18 @@ function Home() {
   const [tickets, setTickets] = useState([]);
   const [activities, setActivities] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getTickets().then((data) => setTickets(Array.isArray(data) ? data : []));
-    fetch(`${API_BASE_URL}/notifications`, { headers: { Authorization: `Bearer ${getToken()}` } })
-      .then((response) => response.json())
-      .then((data) => setNotifications(Array.isArray(data) ? data.filter((item) => !item.read) : []))
-      .catch(() => setNotifications([]));
-    fetch(`${API_BASE_URL}/admin/activity`, { headers: { Authorization: `Bearer ${getToken()}` } })
-      .then((response) => (response.ok ? response.json() : []))
-      .then((data) => setActivities(Array.isArray(data) ? data : []))
-      .catch(() => setActivities([]));
+    Promise.all([
+      getTickets().catch(() => []),
+      fetch(`${API_BASE_URL}/notifications`, { headers: { Authorization: `Bearer ${getToken()}` } })
+        .then((r) => r.json()).then((d) => Array.isArray(d) ? d.filter((x) => !x.read) : []).catch(() => []),
+      fetch(`${API_BASE_URL}/admin/activity`, { headers: { Authorization: `Bearer ${getToken()}` } })
+        .then((r) => r.ok ? r.json() : []).then((d) => Array.isArray(d) ? d : []).catch(() => []),
+    ]).then(([t, n, a]) => {
+      setTickets(t); setNotifications(n); setActivities(a); setLoading(false);
+    });
   }, []);
 
   const openCount = tickets.filter((ticket) => (ticket.status || "Open") === "Open").length;
@@ -67,38 +68,52 @@ function Home() {
         </div>
       )}
       <section className="stats-grid" aria-label="Ticket summary">
-        <Link to="/tickets?status=Open" className="stat-card accent">
-          <span className="stat-icon">↗</span>
-          <div>
-            <span className="stat-label">Open requests</span>
-            <strong>{openCount}</strong>
-            <small>Needs attention</small>
-          </div>
-        </Link>
-        <Link to="/tickets" className="stat-card">
-          <span className="stat-icon blue">⌁</span>
-          <div>
-            <span className="stat-label">Total requests</span>
-            <strong>{tickets.length}</strong>
-            <small>All time</small>
-          </div>
-        </Link>
-        <Link to="/tickets?priority=High" className="stat-card">
-          <span className="stat-icon amber">!</span>
-          <div>
-            <span className="stat-label">High priority</span>
-            <strong>{urgentCount}</strong>
-            <small>Requires action</small>
-          </div>
-        </Link>
-        <Link to="/tickets" className="stat-card">
-          <span className="stat-icon green">✓</span>
-          <div>
-            <span className="stat-label">First response</span>
-            <strong>24m</strong>
-            <small className="positive">↓ 12% this week</small>
-          </div>
-        </Link>
+        {loading ? (
+          <>
+            {[1,2,3,4].map((i) => (
+              <div key={i} className="stat-card" style={{ flexDirection:"column", gap:12 }}>
+                <div className="skeleton skeleton-stat" style={{ width:36, height:36, borderRadius:7 }} />
+                <div className="skeleton skeleton-line w-60" />
+                <div className="skeleton skeleton-line w-40" style={{ height:28, marginTop:4 }} />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <Link to="/tickets?status=Open" className="stat-card accent">
+              <span className="stat-icon" aria-hidden="true">↗</span>
+              <div>
+                <span className="stat-label">Open requests</span>
+                <strong>{openCount}</strong>
+                <small>Needs attention</small>
+              </div>
+            </Link>
+            <Link to="/tickets" className="stat-card">
+              <span className="stat-icon blue" aria-hidden="true">⌁</span>
+              <div>
+                <span className="stat-label">Total requests</span>
+                <strong>{tickets.length}</strong>
+                <small>All time</small>
+              </div>
+            </Link>
+            <Link to="/tickets?priority=High" className="stat-card">
+              <span className="stat-icon amber" aria-hidden="true">!</span>
+              <div>
+                <span className="stat-label">High priority</span>
+                <strong>{urgentCount}</strong>
+                <small>Requires action</small>
+              </div>
+            </Link>
+            <Link to="/tickets" className="stat-card">
+              <span className="stat-icon green" aria-hidden="true">✓</span>
+              <div>
+                <span className="stat-label">First response</span>
+                <strong>24m</strong>
+                <small className="positive">↓ 12% this week</small>
+              </div>
+            </Link>
+          </>
+        )}
       </section>
       <section className="dashboard-grid">
         <div className="panel activity-panel">
@@ -176,15 +191,37 @@ function Home() {
           </div>
           <Link className="text-link" to="/tickets">View all requests →</Link>
         </div>
-        {tickets.length === 0 ? (
-          <div className="empty-state">Your request queue is clear. Create a request to get started.</div>
+        {loading ? (
+          <div className="mini-list">
+            {[1,2,3].map((i) => (
+              <div className="skeleton-row" key={i}>
+                <div className="skeleton skeleton-avatar" />
+                <div className="skeleton-text">
+                  <div className="skeleton skeleton-line w-60" />
+                  <div className="skeleton skeleton-line w-40" />
+                </div>
+                <div className="skeleton skeleton-line w-15" style={{ height:20, borderRadius:4 }} />
+              </div>
+            ))}
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="empty-state">
+            <div style={{ fontSize:32, marginBottom:8 }}>📭</div>
+            <strong>Queue is empty</strong>
+            <p style={{ margin:"6px 0 14px", fontSize:12, color:"var(--muted)" }}>
+              No support requests yet. Create one to get started.
+            </p>
+            <Link to="/add" className="button primary" style={{ display:"inline-flex" }}>
+              <span>+</span> Create request
+            </Link>
+          </div>
         ) : (
           <div className="mini-list">
             {tickets.slice(0, 4).map((ticket) => (
               <div className="mini-row" key={ticket._id}>
-                <span className="ticket-avatar">{(ticket.name || "U").slice(0, 2).toUpperCase()}</span>
+                <span className="ticket-avatar" aria-hidden="true">{(ticket.name || "U").slice(0, 2).toUpperCase()}</span>
                 <div className="ticket-summary">
-                  <strong>{ticket.issue}</strong>
+                  <strong>{ticket.title || ticket.issue}</strong>
                   <small>{ticket.name} · {ticket.department}</small>
                 </div>
                 <span className={`priority ${String(ticket.priority || "Low").toLowerCase()}`}>{ticket.priority || "Low"}</span>

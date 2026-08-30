@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { useAuth } from "../components/AuthContext";
 import { getToken } from "../utils/authStore";
 
 function AdminPanel() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [activities, setActivities] = useState([]);
   const [users, setUsers] = useState([]);
   const [note, setNote] = useState({});
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function headers(json = false) {
     return {
@@ -22,6 +24,7 @@ function AdminPanel() {
 
   const load = useCallback(async () => {
     try {
+      setLoading(true);
       const responses = await Promise.all([
         fetch(`${API_BASE_URL}/tickets`, { headers: headers() }),
         fetch(`${API_BASE_URL}/admin/activity`, { headers: headers() }),
@@ -39,6 +42,8 @@ function AdminPanel() {
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load admin operations data");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -119,6 +124,37 @@ function AdminPanel() {
     }
     setError("");
     await load();
+  }
+
+  async function handleResetAllData() {
+    const confirmation = window.prompt(
+      'DANGER: This will permanently delete ALL users, tickets, notifications, and activity logs across the entire system. This action CANNOT be undone.\n\nType "CONFIRM" to proceed with the total database wipe:'
+    );
+    if (confirmation !== "CONFIRM") {
+      if (confirmation !== null) {
+        alert('Reset cancelled. You must type "CONFIRM" exactly to reset.');
+      }
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/admin/reset-all-data`, {
+        method: "DELETE",
+        headers: headers(),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to reset system data");
+      }
+      alert("All system data has been wiped successfully. You will now be redirected to the login page.");
+      await signOut();
+      navigate("/login", { replace: true });
+    } catch (err) {
+      setError(err.message || "Failed to reset data");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function remove(id) {
@@ -388,6 +424,25 @@ function AdminPanel() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="panel danger-panel system-reset-panel" style={{ marginTop: "24px", border: "1px solid #f4c6bb", background: "#fffbfb" }}>
+        <div>
+          <span className="eyebrow" style={{ color: "var(--orange)" }}>DANGER ZONE / SYSTEM RESET</span>
+          <h2>Reset all system data</h2>
+          <p>
+            Permanently wipe all tickets (open and historical), registered employees, notifications, and activity audit logs. Only your administrator account will be preserved.
+          </p>
+        </div>
+        <button
+          className="button danger"
+          type="button"
+          disabled={loading}
+          onClick={handleResetAllData}
+          style={{ whiteSpace: "nowrap" }}
+        >
+          {loading ? "Resetting..." : "Reset All Data"}
+        </button>
       </section>
 
       {selectedTicket && (

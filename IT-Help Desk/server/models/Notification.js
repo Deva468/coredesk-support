@@ -8,4 +8,6 @@ const NotificationSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+NotificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Notification", NotificationSchema);

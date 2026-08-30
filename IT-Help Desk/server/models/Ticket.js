@@ -34,4 +34,8 @@ const TicketSchema = new mongoose.Schema({
   history: { type: [HistorySchema], default: [] },
 });
 
+TicketSchema.index({ status: 1, submittedAt: -1 });
+TicketSchema.index({ userId: 1, status: 1 });
+TicketSchema.index({ priority: 1 });
+
 module.exports = mongoose.model("Ticket", TicketSchema);
