@@ -1,4 +1,4 @@
-/*  require("dotenv").config();
+ require("dotenv").config();
 
 const dns = require("dns");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
@@ -364,7 +364,7 @@ async function connectToDatabase() {
 }
 
 connectToDatabase().then(async () => {
-  if (isMongoConnected) await migrateFileDataToMongo();
+  // if (isMongoConnected) await migrateFileDataToMongo();
   if (isMongoConnected) await backfillLoginActivities();
   if (isMongoConnected) await repairLegacyTickets();
 
@@ -382,9 +382,13 @@ connectToDatabase().then(async () => {
   process.exitCode = 1;
 });
 
-*/
 
 
+
+
+
+
+/*
 
 require("dotenv").config();
 
@@ -3150,3 +3154,5 @@ connectToDatabase()
 
     process.exitCode = 1;
   });
+
+  */
