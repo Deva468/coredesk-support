@@ -6,6 +6,7 @@ import { useAuth } from "../components/AuthContext";
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("employee");
   const [error, setError] = useState("");
 
   const { setUser } = useAuth();
@@ -15,12 +16,11 @@ function Login() {
   const googleButton = useRef(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-  /*
-    Google Login
-    Google login is available only for employees.
-    Admin accounts must use email + password.
-  */
   useEffect(() => {
+    if (role !== "employee") {
+      return undefined;
+    }
+
     if (!googleClientId || !googleButton.current) {
       return undefined;
     }
@@ -40,13 +40,13 @@ function Login() {
           try {
             setError("");
             const user = await googleLogin(credential);
-            setUser(user);
 
-            if (user.role === "admin") {
-              navigate("/admin", { replace: true });
-            } else {
-              navigate(location.state?.from || "/", { replace: true });
+            if (user.role !== "employee") {
+              throw new Error("Google login is available only for employee accounts.");
             }
+
+            setUser(user);
+            navigate("/", { replace: true });
           } catch (err) {
             setError(err.message || "Google login failed");
           }
@@ -66,11 +66,8 @@ function Login() {
     return () => {
       script.remove();
     };
-  }, [googleClientId, navigate, setUser, location.state]);
+  }, [googleClientId, navigate, setUser, role]);
 
-  /*
-    Normal Email + Password Login
-  */
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
@@ -81,14 +78,24 @@ function Login() {
         password,
       });
 
+      /*
+        SECURITY: The role dropdown is just a UI preference.
+        The REAL role always comes from the backend/database (user.role).
+        We compare it here only to give a clear error message —
+        never to grant access.
+      */
+      if (user.role !== role) {
+        throw new Error(
+          role === "admin"
+            ? "This account is not registered as an administrator."
+            : "This account is not registered as an employee."
+        );
+      }
+
       setUser(user);
       setEmail("");
       setPassword("");
 
-      /*
-        Role comes ONLY from the backend/database response.
-        Frontend never decides or sends the role.
-      */
       if (user.role === "admin") {
         navigate("/admin", { replace: true });
       } else {
@@ -101,8 +108,6 @@ function Login() {
 
   return (
     <div className="auth-page">
-
-      {/* Brand */}
       <div className="auth-brand">
         <span className="brand-mark" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -115,7 +120,6 @@ function Login() {
         <small>IT Service Desk</small>
       </div>
 
-      {/* Login Card */}
       <div className="auth-card">
         <span className="eyebrow">SECURE ACCESS</span>
         <h1>Welcome back</h1>
@@ -146,22 +150,47 @@ function Login() {
             />
           </label>
 
+          <label>
+            Login As
+            <select
+              value={role}
+              onChange={(event) => {
+                setRole(event.target.value);
+                setError("");
+              }}
+              required
+            >
+              <option value="employee">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+
           <button className="button primary" type="submit">
             Sign in <span>→</span>
           </button>
         </form>
 
-        <div className="auth-divider">
-          <span>or</span>
-        </div>
+        {role === "employee" && (
+          <>
+            <div className="auth-divider">
+              <span>or</span>
+            </div>
 
-        {googleClientId ? (
-          <div className="google-button" ref={googleButton}></div>
-        ) : (
-          <button className="google-button" type="button" disabled>
-            Continue with Google
-            <small>Configure Google sign-in to enable</small>
-          </button>
+            {googleClientId ? (
+              <div className="google-button" ref={googleButton}></div>
+            ) : (
+              <button className="google-button" type="button" disabled>
+                Continue with Google
+                <small>Configure Google sign-in to enable</small>
+              </button>
+            )}
+          </>
+        )}
+
+        {role === "admin" && (
+          <div className="admin-login-note">
+            Admin access requires an authorized administrator account and password.
+          </div>
         )}
 
         <p className="auth-switch">

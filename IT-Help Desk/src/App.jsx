@@ -23,6 +23,7 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/add" element={<AddTicket />} />
@@ -30,9 +31,13 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/help" element={<HelpCenter />} />
               </Route>
+
               <Route element={<ProtectedRoute admin />}>
                 <Route path="/admin" element={<AdminPanel />} />
               </Route>
+
+              {/* Catches any undefined URL - shows Login instead of 404 */}
+              <Route path="*" element={<Login />} />
             </Routes>
           </main>
         </div>
