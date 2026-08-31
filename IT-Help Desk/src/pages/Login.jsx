@@ -6,7 +6,7 @@ import { useAuth } from "../components/AuthContext";
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("user");
+  const [role, setRole] = useState("employee");
   const [error, setError] = useState("");
 
   const { setUser } = useAuth();
@@ -16,10 +16,14 @@ function Login() {
   const googleButton = useRef(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-  // Google Login
+  /*
+    Google Login
+
+    Google login is available only for employees.
+    Admin accounts must use email + password.
+  */
   useEffect(() => {
-    // Do not show Google login for Admin
-    if (role === "admin") {
+    if (role !== "employee") {
       return undefined;
     }
 
@@ -42,9 +46,13 @@ function Login() {
 
         callback: async ({ credential }) => {
           try {
+            setError("");
+
             const user = await googleLogin(credential);
 
-            // Google accounts are treated as normal employees
+            /*
+              Google accounts must be employees.
+            */
             if (user.role !== "employee") {
               throw new Error(
                 "Google login is available only for employee accounts."
@@ -57,7 +65,9 @@ function Login() {
               replace: true,
             });
           } catch (err) {
-            setError(err.message || "Google login failed");
+            setError(
+              err.message || "Google login failed"
+            );
           }
         },
       });
@@ -78,35 +88,37 @@ function Login() {
     return () => {
       script.remove();
     };
-  }, [googleClientId, navigate, setUser, role]);
+  }, [
+    googleClientId,
+    navigate,
+    setUser,
+    role,
+  ]);
 
-  // Normal Login
+  /*
+    Normal Email + Password Login
+  */
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
 
     try {
       const user = await login({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         role,
       });
 
       /*
-        Backend already verifies the actual role
-        stored in MongoDB.
+        Extra frontend verification.
 
-        This frontend check is an additional safety check.
+        Backend must ALSO verify this.
       */
-
-      const actualRole =
-        user.role === "admin" ? "admin" : "user";
-
-      if (actualRole !== role) {
+      if (user.role !== role) {
         throw new Error(
-          `This account is not registered as ${
-            role === "admin" ? "Admin" : "User"
-          }.`
+          role === "admin"
+            ? "This account is not registered as an administrator."
+            : "This account is not registered as an employee."
         );
       }
 
@@ -115,7 +127,9 @@ function Login() {
       setEmail("");
       setPassword("");
 
-      // Admin -> Admin dashboard
+      /*
+        Admin → Admin dashboard
+      */
       if (role === "admin") {
         navigate("/admin", {
           replace: true,
@@ -124,12 +138,19 @@ function Login() {
         return;
       }
 
-      // Employee -> Normal dashboard/home
-      navigate(location.state?.from || "/", {
-        replace: true,
-      });
+      /*
+        Employee → Normal dashboard
+      */
+      navigate(
+        location.state?.from || "/",
+        {
+          replace: true,
+        }
+      );
     } catch (err) {
-      setError(err.message || "Login failed");
+      setError(
+        err.message || "Login failed"
+      );
     }
   }
 
@@ -241,7 +262,7 @@ function Login() {
               }}
               required
             >
-              <option value="user">
+              <option value="employee">
                 User
               </option>
 
@@ -261,8 +282,8 @@ function Login() {
 
         </form>
 
-        {/* Google Login only for User */}
-        {role === "user" && (
+        {/* Google Login only for employees */}
+        {role === "employee" && (
           <>
             <div className="auth-divider">
               <span>or</span>
@@ -292,14 +313,15 @@ function Login() {
         {/* Admin information */}
         {role === "admin" && (
           <div className="admin-login-note">
-            Admin access requires an authorized administrator
-            account.
+            Admin access requires an authorized
+            administrator account and password.
           </div>
         )}
 
         {/* Signup */}
         <p className="auth-switch">
           New to the service desk?{" "}
+
           <Link to="/signup">
             Create an account
           </Link>

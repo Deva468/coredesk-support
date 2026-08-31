@@ -1,3 +1,4 @@
+ /* 
  require("dotenv").config();
 
 const dns = require("dns");
@@ -380,7 +381,8 @@ connectToDatabase().then(async () => {
 }).catch((error) => {
   console.error("Server startup failed because MongoDB is unavailable:", error.message);
   process.exitCode = 1;
-});
+}); ?
+*/
 
 
 
@@ -388,7 +390,12 @@ connectToDatabase().then(async () => {
 
 
 
-/*
+
+
+
+
+
+
 
 require("dotenv").config();
 
@@ -3155,4 +3162,4 @@ connectToDatabase()
     process.exitCode = 1;
   });
 
-  */
+  
