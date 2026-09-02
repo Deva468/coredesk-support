@@ -76,6 +76,7 @@ function Login() {
       const user = await login({
         email: email.trim().toLowerCase(),
         password,
+        role,
       });
 
       /*
