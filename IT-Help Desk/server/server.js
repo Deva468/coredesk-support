@@ -2186,6 +2186,128 @@ app.patch(
   }
 );
 
+
+
+
+
+/* ---------------------------------------
+   REMOVE USER COMPLETELY
+--------------------------------------- */
+
+app.delete(
+  "/admin/users/:id",
+  authRequired,
+  adminRequired,
+  async (req, res) => {
+    if (
+      String(req.user._id) ===
+      String(req.params.id)
+    ) {
+      return res.status(400).json({
+        message:
+          "You cannot remove your own account",
+      });
+    }
+
+    if (!isMongoConnected) {
+      const users =
+        readFile("users.json");
+
+      const targetUser =
+        users.find(
+          (user) =>
+            String(user._id) ===
+            String(req.params.id)
+        );
+
+      if (!targetUser) {
+        return res.status(404).json({
+          message:
+            "User not found",
+        });
+      }
+
+      const remainingUsers =
+        users.filter(
+          (user) =>
+            String(user._id) !==
+            String(req.params.id)
+        );
+
+      writeFile(
+        "users.json",
+        remainingUsers
+      );
+
+      return res.json({
+        message:
+          "User removed successfully",
+      });
+    }
+
+    try {
+      const targetUser =
+        await User.findById(
+          req.params.id
+        );
+
+      if (!targetUser) {
+        return res.status(404).json({
+          message:
+            "User not found",
+        });
+      }
+
+      await User.findByIdAndDelete(
+        req.params.id
+      );
+
+      await logActivity(
+        req.user,
+        "user_removed",
+        {
+          removedUserId:
+            String(
+              targetUser._id
+            ),
+          removedUserEmail:
+            targetUser.email,
+          removedUserName:
+            targetUser.name,
+        }
+      );
+
+      return res.json({
+        message:
+          "User removed successfully",
+      });
+    } catch (error) {
+      if (
+        error.name ===
+        "CastError"
+      ) {
+        return res.status(400).json({
+          message:
+            "Invalid user ID",
+        });
+      }
+
+      console.error(
+        "User removal failed:",
+        error
+      );
+
+      return res.status(500).json({
+        message:
+          "The user could not be removed",
+      });
+    }
+  }
+);
+
+
+
+
 /* ---------------------------------------
    CLEAR HISTORY
 --------------------------------------- */
