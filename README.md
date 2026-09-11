@@ -1,16 +1,58 @@
-# React + Vite
+# CoreDesk — IT Support Ticketing System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+CoreDesk is a full-stack IT support ticketing system built with the MERN stack (MongoDB, Express, React, Node.js). It allows employees to raise support requests and enables administrators to manage, resolve, and track those requests through a dedicated admin dashboard.
 
-Currently, two official plugins are available:
+🔗 **Live Demo:** [coredesk-support-dk.vercel.app](https://coredesk-support-dk.vercel.app)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ✨ Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Role-based authentication** — separate access levels for Employees and Administrators
+- **Ticket management** — create, view, resolve, and remove support tickets
+- **Admin dashboard** — manage registered employees, assign resolvers, and track ticket history
+- **Activity audit log** — tracks logins, ticket actions, and admin operations
+- **Google OAuth login** — quick sign-in for employee accounts
+- **Admin promotion/demotion** — existing admins can grant or revoke admin access
+- **Secure JWT-based sessions** with protected routes
+- **Responsive UI** built with React and Vite
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🛠️ Tech Stack
+
+**Frontend:**
+- React (Vite)
+- React Router DOM
+
+**Backend:**
+- Node.js
+- Express.js
+- MongoDB (Mongoose)
+- JWT for authentication
+- bcryptjs for password hashing
+- Google Auth Library (OAuth)
+
+**Deployment:**
+- Frontend: Vercel
+- Backend: Render
+- Database: MongoDB Atlas
+
+
+## 🚀 Running Locally
+
+### Prerequisites
+- Node.js installed
+- A MongoDB Atlas account (or local MongoDB instance)
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/Deva468/coredesk-support.git
+cd coredesk-support
+```
+
+### 2. Backend Setup
+```bash
+cd "IT-Help Desk/server"
+npm install
+```
