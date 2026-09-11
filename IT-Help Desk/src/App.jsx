@@ -25,15 +25,10 @@ function AppLayout() {
             <Route path="/tickets" element={<ViewTickets />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/help" element={<HelpCenter />} />
-<<<<<<< HEAD
             {/* Any unknown URL under protected area falls back to Home,
                 which itself redirects to /login if not authenticated */}
             <Route path="*" element={<Home />} />
           </Route>
-
-=======
-          </Route>
->>>>>>> 5d58d600773984474292a11b66e649a375a8a8d4
           <Route element={<ProtectedRoute admin />}>
             <Route path="/admin" element={<AdminPanel />} />
           </Route>
