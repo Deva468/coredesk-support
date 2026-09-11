@@ -111,6 +111,28 @@ function AdminPanel() {
     await load();
   }
 
+
+  async function removeUser(id, userName) {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY remove ${userName || "this user"}? This will delete their account and cannot be undone.`)) return;
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: "DELETE",
+      headers: headers(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(data.message || "Unable to remove user");
+      return;
+    }
+    setError("");
+    await load();
+  }
+  
+
+
+
+
+
+  
   async function clearHistory() {
     if (!window.confirm("WARNING: Are you sure you want to permanently clear ALL resolved and removed ticket records? This action cannot be undone.")) return;
     const response = await fetch(`${API_BASE_URL}/admin/tickets/history/clear`, {
@@ -276,14 +298,24 @@ function AdminPanel() {
                             Remove Admin
                           </button>
                         )
-                      ) : (
-                        <button
-                          className="button secondary"
-                          type="button"
-                          onClick={() => promoteUser(userItem._id, userItem.name)}
-                        >
-                          Make Admin
-                        </button>
+                                            ) : (
+                        <>
+                          <button
+                            className="button secondary"
+                            type="button"
+                            onClick={() => promoteUser(userItem._id, userItem.name)}
+                          >
+                            Make Admin
+                          </button>
+                          <button
+                            className="button danger"
+                            type="button"
+                            onClick={() => removeUser(userItem._id, userItem.name)}
+                            style={{ marginLeft: "8px" }}
+                          >
+                            Remove User
+                          </button>
+                        </>
                       )}
                     </td>
                   )}

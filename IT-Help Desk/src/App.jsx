@@ -13,34 +13,41 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./components/AuthContext";
 import "./App.css";
 
+function AppLayout() {
+  return (
+    <div className="app-shell">
+      <Navbar />
+      <main className="main-content">
+        <Routes>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/add" element={<AddTicket />} />
+            <Route path="/tickets" element={<ViewTickets />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/help" element={<HelpCenter />} />
+            {/* Any unknown URL under protected area falls back to Home,
+                which itself redirects to /login if not authenticated */}
+            <Route path="*" element={<Home />} />
+          </Route>
+
+          <Route element={<ProtectedRoute admin />}>
+            <Route path="/admin" element={<AdminPanel />} />
+          </Route>
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="app-shell">
-          <Navbar />
-          <main className="main-content">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-
-              <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Home />} />
-                <Route path="/add" element={<AddTicket />} />
-                <Route path="/tickets" element={<ViewTickets />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/help" element={<HelpCenter />} />
-              </Route>
-
-              <Route element={<ProtectedRoute admin />}>
-                <Route path="/admin" element={<AdminPanel />} />
-              </Route>
-
-              {/* Catches any undefined URL - shows Login instead of 404 */}
-              <Route path="*" element={<Login />} />
-            </Routes>
-          </main>
-        </div>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/*" element={<AppLayout />} />
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   );
